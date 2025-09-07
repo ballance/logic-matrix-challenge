@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logic Matrix Challenge</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Logic Matrix Challenge</h1>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="test-info">
+                <span id="currentQuestion">Question 1</span>
+                <span id="currentSet">Level A</span>
+                <span id="timeDisplay">Time: 00:00</span>
+            </div>
+        </header>
+
+        <main>
+            <div id="welcomeScreen" class="screen">
+                <div class="welcome-content">
+                    <h2>Welcome to the Logic Matrix Challenge</h2>
+                    <p>This challenge tests your logical reasoning and pattern recognition skills. You will see a series of visual matrices with one piece missing.</p>
+                    <p>Your task is to identify which piece correctly completes each matrix from the given options.</p>
+                    <div class="instructions">
+                        <h3>Instructions:</h3>
+                        <ul>
+                            <li>Study each matrix carefully</li>
+                            <li>Identify the logical rule or pattern</li>
+                            <li>Select the piece that best completes the matrix</li>
+                            <li>The challenge consists of 5 levels (A-E) with increasing difficulty</li>
+                            <li>Each level has 12 questions</li>
+                        </ul>
+                    </div>
+                    <button id="startTest" class="btn-primary">Start Challenge</button>
+                </div>
+            </div>
+
+            <div id="testScreen" class="screen hidden">
+                <div class="question-container">
+                    <div class="matrix-container">
+                        <div id="matrixPattern" class="matrix-pattern">
+                            <!-- Matrix pattern will be loaded here -->
+                        </div>
+                    </div>
+                    
+                    <div class="options-container">
+                        <h3>Choose the missing piece:</h3>
+                        <div id="answerOptions" class="answer-options">
+                            <!-- Answer options will be loaded here -->
+                        </div>
+                    </div>
+                    
+                    <div class="controls">
+                        <button id="prevBtn" class="btn-secondary" disabled>Previous</button>
+                        <button id="nextBtn" class="btn-primary" disabled>Next</button>
+                        <button id="submitAnswer" class="btn-primary" disabled>Submit Answer</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="resultsScreen" class="screen hidden">
+                <div class="results-content">
+                    <h2>Challenge Complete!</h2>
+                    <div class="score-summary">
+                        <div class="total-score">
+                            <h3>Total Score: <span id="totalScore">0</span>/60</h3>
+                            <div class="percentage">
+                                Percentage: <span id="percentage">0</span>%
+                            </div>
+                        </div>
+                        <div class="set-breakdown">
+                            <h4>Breakdown by Level:</h4>
+                            <div id="setScores" class="set-scores">
+                                <!-- Set scores will be populated here -->
+                            </div>
+                        </div>
+                        <div class="performance-level">
+                            <h4>Performance Level:</h4>
+                            <div id="performanceLevel" class="level-indicator">
+                                <!-- Performance level will be shown here -->
+                            </div>
+                        </div>
+                    </div>
+                    <div class="results-actions">
+                        <button id="reviewAnswers" class="btn-secondary">Review Answers</button>
+                        <button id="restartTest" class="btn-primary">Restart Challenge</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="reviewScreen" class="screen hidden">
+                <div class="review-content">
+                    <h2>Review Your Answers</h2>
+                    <div class="review-navigation">
+                        <button id="prevReview" class="btn-secondary">Previous</button>
+                        <span id="reviewCounter">1 / 60</span>
+                        <button id="nextReview" class="btn-secondary">Next</button>
+                        <button id="backToResults" class="btn-primary">Back to Results</button>
+                    </div>
+                    <div id="reviewQuestion" class="review-question">
+                        <!-- Review question content will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="testData.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
