@@ -9,10 +9,76 @@ class RavenTest {
         this.totalQuestions = this.allQuestions.length;
         this.isReviewMode = false;
         this.reviewIndex = 0;
+        this.isPaused = false;
+        this.pausedTime = 0;
+        this.selectedOptionIndex = -1;
         
+        this.initializeAudio();
         this.initializeElements();
         this.bindEvents();
+        this.clearPauseState(); // Ensure clean state on startup
         this.showWelcomeScreen();
+    }
+    
+    initializeAudio() {
+        // Initialize audio context for sound effects
+        this.audioContext = null;
+        this.sounds = {};
+        
+        // Try to initialize AudioContext
+        try {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            this.createSoundEffects();
+        } catch (e) {
+            console.warn('Audio not supported:', e);
+        }
+    }
+    
+    createSoundEffects() {
+        // Create different sound effects using oscillators
+        this.sounds = {
+            click: () => this.playTone(800, 0.1, 'sine'),
+            correct: () => this.playChord([523.25, 659.25, 783.99], 0.3, 'sine'), // C major chord
+            incorrect: () => this.playTone(200, 0.5, 'sawtooth'),
+            navigation: () => this.playTone(600, 0.08, 'triangle'),
+            complete: () => this.playSequence([523.25, 659.25, 783.99, 1046.50], 0.15, 'sine')
+        };
+    }
+    
+    playTone(frequency, duration, type = 'sine') {
+        if (!this.audioContext) return;
+        
+        const oscillator = this.audioContext.createOscillator();
+        const gainNode = this.audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(this.audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(frequency, this.audioContext.currentTime);
+        oscillator.type = type;
+        
+        gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.1, this.audioContext.currentTime + 0.01);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + duration);
+        
+        oscillator.start(this.audioContext.currentTime);
+        oscillator.stop(this.audioContext.currentTime + duration);
+    }
+    
+    playChord(frequencies, duration, type = 'sine') {
+        frequencies.forEach(freq => this.playTone(freq, duration, type));
+    }
+    
+    playSequence(frequencies, noteDuration, type = 'sine') {
+        frequencies.forEach((freq, index) => {
+            setTimeout(() => this.playTone(freq, noteDuration, type), index * noteDuration * 1000);
+        });
+    }
+    
+    playSound(soundName) {
+        if (this.sounds[soundName]) {
+            this.sounds[soundName]();
+        }
     }
     
     initializeElements() {
@@ -37,6 +103,15 @@ class RavenTest {
         this.prevButton = document.getElementById('prevBtn');
         this.nextButton = document.getElementById('nextBtn');
         this.submitButton = document.getElementById('submitAnswer');
+        this.pauseButton = document.getElementById('pauseBtn');
+        this.resumeButton = document.getElementById('resumeBtn');
+        this.pauseOverlay = document.getElementById('pauseOverlay');
+        
+        // Force hide pause overlay initially
+        if (this.pauseOverlay) {
+            this.pauseOverlay.classList.add('hidden');
+            this.pauseOverlay.style.display = 'none';
+        }
         
         // Results elements
         this.totalScoreDisplay = document.getElementById('totalScore');
@@ -50,24 +125,87 @@ class RavenTest {
     }
     
     bindEvents() {
-        this.startButton.addEventListener('click', () => this.startTest());
-        this.prevButton.addEventListener('click', () => this.previousQuestion());
-        this.nextButton.addEventListener('click', () => this.nextQuestion());
-        this.submitButton.addEventListener('click', () => this.submitAnswer());
+        this.startButton.addEventListener('click', () => {
+            this.playSound('click');
+            this.startTest();
+        });
+        this.prevButton.addEventListener('click', () => {
+            this.playSound('navigation');
+            this.previousQuestion();
+        });
+        this.nextButton.addEventListener('click', () => {
+            this.playSound('navigation');
+            this.nextQuestion();
+        });
+        this.submitButton.addEventListener('click', () => {
+            this.playSound('click');
+            this.submitAnswer();
+        });
+        this.pauseButton.addEventListener('click', () => {
+            this.playSound('click');
+            this.pauseTest();
+        });
+        this.resumeButton.addEventListener('click', () => {
+            this.playSound('click');
+            this.resumeTest();
+        });
         
-        document.getElementById('reviewAnswers').addEventListener('click', () => this.showReviewScreen());
-        document.getElementById('restartTest').addEventListener('click', () => this.restartTest());
-        document.getElementById('backToResults').addEventListener('click', () => this.showResultsScreen());
-        document.getElementById('prevReview').addEventListener('click', () => this.previousReview());
-        document.getElementById('nextReview').addEventListener('click', () => this.nextReview());
+        // Allow clicking overlay background to resume
+        this.pauseOverlay.addEventListener('click', (e) => {
+            if (e.target === this.pauseOverlay) {
+                this.playSound('click');
+                if (!this.testScreen.classList.contains('hidden')) {
+                    this.resumeTest();
+                } else {
+                    this.clearPauseState();
+                }
+            }
+        });
+        
+        // Double-click anywhere on overlay for emergency clear
+        this.pauseOverlay.addEventListener('dblclick', () => {
+            this.clearPauseState();
+        });
+        
+        document.getElementById('reviewAnswers').addEventListener('click', () => {
+            this.playSound('click');
+            this.showReviewScreen();
+        });
+        document.getElementById('restartTest').addEventListener('click', () => {
+            this.playSound('click');
+            this.restartTest();
+        });
+        document.getElementById('backToResults').addEventListener('click', () => {
+            this.playSound('navigation');
+            this.showResultsScreen();
+        });
+        document.getElementById('prevReview').addEventListener('click', () => {
+            this.playSound('navigation');
+            this.previousReview();
+        });
+        document.getElementById('nextReview').addEventListener('click', () => {
+            this.playSound('navigation');
+            this.nextReview();
+        });
+        
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => this.handleKeyPress(e));
+        
+        // Resume audio context on first user interaction (required by browsers)
+        document.addEventListener('click', () => {
+            if (this.audioContext && this.audioContext.state === 'suspended') {
+                this.audioContext.resume();
+            }
+        }, { once: true });
     }
     
     prepareAllQuestions() {
         const questions = [];
         const sets = ['A', 'B', 'C', 'D', 'E'];
         
+        // Temporarily limit to 10 questions total (2 from each set)
         sets.forEach(setLetter => {
-            testData.sets[setLetter].questions.forEach((question, index) => {
+            testData.sets[setLetter].questions.slice(0, 2).forEach((question, index) => {
                 questions.push({
                     ...question,
                     set: setLetter,
@@ -84,6 +222,7 @@ class RavenTest {
     showWelcomeScreen() {
         this.hideAllScreens();
         this.welcomeScreen.classList.remove('hidden');
+        this.clearPauseState();
     }
     
     showTestScreen() {
@@ -94,6 +233,7 @@ class RavenTest {
     showResultsScreen() {
         this.hideAllScreens();
         this.resultsScreen.classList.remove('hidden');
+        this.clearPauseState();
         this.displayResults();
     }
     
@@ -115,6 +255,8 @@ class RavenTest {
         this.testStartTime = new Date();
         this.currentQuestion = 0;
         this.userAnswers = [];
+        this.selectedOptionIndex = -1;
+        this.pauseButton.style.display = 'inline-block';
         this.showTestScreen();
         this.displayQuestion();
         this.startTimer();
@@ -122,7 +264,7 @@ class RavenTest {
     
     startTimer() {
         setInterval(() => {
-            if (this.testStartTime && !this.isReviewMode) {
+            if (this.testStartTime && !this.isReviewMode && !this.isPaused) {
                 const elapsed = new Date() - this.testStartTime;
                 const minutes = Math.floor(elapsed / 60000);
                 const seconds = Math.floor((elapsed % 60000) / 1000);
@@ -136,6 +278,7 @@ class RavenTest {
         if (!question) return;
         
         this.questionStartTime = new Date();
+        this.selectedOptionIndex = -1;
         
         // Update progress and info
         this.updateProgress();
@@ -238,7 +381,10 @@ class RavenTest {
             optionElement.appendChild(label);
             
             // Add click handler
-            optionElement.addEventListener('click', () => this.selectOption(index));
+            optionElement.addEventListener('click', () => {
+                this.playSound('click');
+                this.selectOption(index);
+            });
             
             this.answerOptions.appendChild(optionElement);
         });
@@ -262,6 +408,9 @@ class RavenTest {
             selectedOption.classList.add('selected');
         }
         
+        // Store selected option for keyboard navigation
+        this.selectedOptionIndex = optionIndex;
+        
         // Record answer
         const responseTime = recordTime ? new Date() - this.questionStartTime : 
                             (this.userAnswers[this.currentQuestion]?.responseTime || 0);
@@ -275,10 +424,14 @@ class RavenTest {
         
         // Enable submit button
         this.submitButton.disabled = false;
+        
+        // Update progress
+        this.updateProgress();
     }
     
     updateProgress() {
-        const progress = ((this.currentQuestion) / this.totalQuestions) * 100;
+        const answeredQuestions = this.userAnswers.filter(answer => answer !== undefined).length;
+        const progress = (answeredQuestions / this.totalQuestions) * 100;
         this.progressFill.style.width = `${progress}%`;
     }
     
@@ -312,6 +465,10 @@ class RavenTest {
     
     submitAnswer() {
         if (this.userAnswers[this.currentQuestion]) {
+            // Play sound feedback based on correctness
+            const isCorrect = this.userAnswers[this.currentQuestion].isCorrect;
+            this.playSound(isCorrect ? 'correct' : 'incorrect');
+            
             if (this.currentQuestion === this.totalQuestions - 1) {
                 this.finishTest();
             } else {
@@ -323,6 +480,8 @@ class RavenTest {
     finishTest() {
         this.updateProgress();
         this.progressFill.style.width = '100%';
+        this.pauseButton.style.display = 'none';
+        this.playSound('complete');
         this.showResultsScreen();
     }
     
@@ -334,22 +493,23 @@ class RavenTest {
         // Calculate set scores
         const setScores = {};
         ['A', 'B', 'C', 'D', 'E'].forEach(setLetter => {
-            const setAnswers = this.userAnswers.filter(answer => 
-                answer.questionId.startsWith(setLetter)
+            const setQuestions = this.allQuestions.filter(q => q.set === setLetter);
+            const setAnswers = this.userAnswers.filter((answer, index) => 
+                this.allQuestions[index] && this.allQuestions[index].set === setLetter
             );
-            const setCorrect = setAnswers.filter(answer => answer.isCorrect).length;
+            const setCorrect = setAnswers.filter(answer => answer && answer.isCorrect).length;
             setScores[setLetter] = {
                 correct: setCorrect,
                 total: setAnswers.length,
-                percentage: Math.round((setCorrect / setAnswers.length) * 100)
+                percentage: setAnswers.length > 0 ? Math.round((setCorrect / setAnswers.length) * 100) : 0
             };
         });
         
-        // Determine performance level
+        // Determine performance level (adjusted for 10 questions)
         let performanceLevel = 'Below Average';
-        if (totalCorrect >= 54) performanceLevel = 'Superior';
-        else if (totalCorrect >= 45) performanceLevel = 'Above Average';
-        else if (totalCorrect >= 35) performanceLevel = 'Average';
+        if (totalCorrect >= 9) performanceLevel = 'Superior';
+        else if (totalCorrect >= 7) performanceLevel = 'Above Average';
+        else if (totalCorrect >= 5) performanceLevel = 'Average';
         
         return {
             totalCorrect,
@@ -363,20 +523,23 @@ class RavenTest {
     displayResults() {
         const results = this.calculateResults();
         
-        this.totalScoreDisplay.textContent = `${results.totalCorrect}`;
-        this.percentageDisplay.textContent = `${results.percentage}`;
+        this.totalScoreDisplay.textContent = `${results.totalCorrect}/${results.totalQuestions}`;
+        this.percentageDisplay.textContent = `${results.percentage}%`;
         
-        // Display set scores
+        // Display set scores (only show levels with questions)
         this.setScoresContainer.innerHTML = '';
         Object.entries(results.setScores).forEach(([setLetter, score]) => {
-            const setScoreElement = document.createElement('div');
-            setScoreElement.className = 'set-score';
-            setScoreElement.innerHTML = `
-                <h5>Level ${setLetter}</h5>
-                <div>${score.correct}/12</div>
-                <div>${score.percentage}%</div>
-            `;
-            this.setScoresContainer.appendChild(setScoreElement);
+            // Only display levels that have questions
+            if (score.total > 0) {
+                const setScoreElement = document.createElement('div');
+                setScoreElement.className = 'set-score';
+                setScoreElement.innerHTML = `
+                    <h5>Level ${setLetter}:</h5>
+                    <div>${score.correct}/${score.total}</div>
+                    <div>${score.percentage}%</div>
+                `;
+                this.setScoresContainer.appendChild(setScoreElement);
+            }
         });
         
         // Display performance level
@@ -488,7 +651,130 @@ class RavenTest {
         this.userAnswers = [];
         this.testStartTime = null;
         this.isReviewMode = false;
+        this.isPaused = false;
+        this.pausedTime = 0;
+        this.selectedOptionIndex = -1;
+        this.pauseButton.style.display = 'none';
         this.showWelcomeScreen();
+    }
+    
+    handleKeyPress(event) {
+        // Emergency escape - always allow Escape key to clear pause state
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            this.clearPauseState();
+            return;
+        }
+        
+        // Handle resume when paused
+        if (this.isPaused) {
+            if (event.key === ' ' || event.key === 'Enter') {
+                event.preventDefault();
+                if (!this.testScreen.classList.contains('hidden')) {
+                    this.resumeTest();
+                } else {
+                    this.clearPauseState();
+                }
+                return;
+            }
+        }
+        
+        // Only handle keys during test screen and when not paused
+        if (!this.testScreen.classList.contains('hidden') && !this.isPaused) {
+            switch(event.key) {
+                case 'ArrowLeft':
+                case 'ArrowUp':
+                    event.preventDefault();
+                    this.navigateOptions(-1);
+                    break;
+                case 'ArrowRight':
+                case 'ArrowDown':
+                    event.preventDefault();
+                    this.navigateOptions(1);
+                    break;
+                case 'Enter':
+                    event.preventDefault();
+                    if (this.selectedOptionIndex >= 0) {
+                        this.playSound('click');
+                        this.submitAnswer();
+                    }
+                    break;
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                    event.preventDefault();
+                    const optionIndex = parseInt(event.key) - 1;
+                    if (optionIndex < 6) {
+                        this.playSound('click');
+                        this.selectOption(optionIndex);
+                    }
+                    break;
+                case ' ':
+                    event.preventDefault();
+                    if (this.testStartTime && !this.testScreen.classList.contains('hidden')) {
+                        this.pauseTest();
+                    }
+                    break;
+            }
+        }
+    }
+    
+    navigateOptions(direction) {
+        const totalOptions = 6;
+        if (this.selectedOptionIndex === -1) {
+            this.selectedOptionIndex = direction > 0 ? 0 : totalOptions - 1;
+        } else {
+            this.selectedOptionIndex = (this.selectedOptionIndex + direction + totalOptions) % totalOptions;
+        }
+        
+        this.playSound('navigation');
+        this.selectOption(this.selectedOptionIndex);
+    }
+    
+    pauseTest() {
+        // Only allow pausing during active test
+        if (this.isPaused || this.testScreen.classList.contains('hidden') || !this.testStartTime) return;
+        
+        this.isPaused = true;
+        this.pausedTime = new Date();
+        if (this.pauseOverlay) {
+            this.pauseOverlay.classList.remove('hidden');
+            this.pauseOverlay.style.display = 'flex';
+        }
+        this.playSound('click');
+    }
+    
+    resumeTest() {
+        if (!this.isPaused) return;
+        
+        this.isPaused = false;
+        const pauseDuration = new Date() - this.pausedTime;
+        
+        // Adjust start times to account for pause
+        if (this.testStartTime) {
+            this.testStartTime = new Date(this.testStartTime.getTime() + pauseDuration);
+        }
+        if (this.questionStartTime) {
+            this.questionStartTime = new Date(this.questionStartTime.getTime() + pauseDuration);
+        }
+        
+        if (this.pauseOverlay) {
+            this.pauseOverlay.classList.add('hidden');
+            this.pauseOverlay.style.display = 'none';
+        }
+        this.playSound('click');
+    }
+    
+    clearPauseState() {
+        this.isPaused = false;
+        this.pausedTime = 0;
+        if (this.pauseOverlay) {
+            this.pauseOverlay.classList.add('hidden');
+            this.pauseOverlay.style.display = 'none';
+        }
     }
 }
 

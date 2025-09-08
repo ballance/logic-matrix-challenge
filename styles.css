@@ -59,8 +59,9 @@ header h1 {
     min-height: calc(100vh - 140px);
 }
 
-.screen.hidden {
-    display: none;
+.screen.hidden,
+.hidden {
+    display: none !important;
 }
 
 .welcome-content {
@@ -159,6 +160,13 @@ header h1 {
     overflow: hidden;
     max-width: 60px;
     max-height: 60px;
+}
+
+.review-matrix .pattern-element,
+.review-options .pattern-element {
+    max-width: 45px;
+    max-height: 45px;
+    font-size: 0.8em;
 }
 
 .options-container {
@@ -274,6 +282,59 @@ header h1 {
     transform: none;
 }
 
+.btn-pause {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    background: #ff9800;
+    color: white;
+    transition: all 0.3s ease;
+    margin-left: 15px;
+}
+
+.btn-pause:hover {
+    background: #f57c00;
+    transform: translateY(-1px);
+}
+
+/* Pause Overlay */
+.pause-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.pause-content {
+    background: white;
+    padding: 40px;
+    border-radius: 12px;
+    text-align: center;
+    max-width: 400px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.pause-content h2 {
+    color: #333;
+    margin-bottom: 15px;
+    font-size: 1.8rem;
+}
+
+.pause-content p {
+    color: #666;
+    margin-bottom: 25px;
+    font-size: 1.1rem;
+}
+
 .results-content {
     max-width: 800px;
     margin: 0 auto;
@@ -387,11 +448,38 @@ header h1 {
     padding: 20px;
 }
 
+.review-matrix .matrix-pattern {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    max-width: 300px;
+    margin: 15px auto 0;
+}
+
+.review-matrix .matrix-cell {
+    aspect-ratio: 1;
+    min-height: 60px;
+    font-size: 0.9rem;
+}
+
 .review-options {
     background: white;
     border: 2px solid #ddd;
     border-radius: 10px;
     padding: 20px;
+}
+
+.review-options .answer-options {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.review-options .option {
+    aspect-ratio: 1;
+    min-height: 80px;
+    font-size: 0.9rem;
 }
 
 .review-answer-info {
